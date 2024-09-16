@@ -1,0 +1,17 @@
+{
+  "name": "rest_api_youtube_mini",
+  "version": "1.0.0",
+  "description": "this project contains the RESTFul APIs for youtube bakend. this project is purely based on Javascript and making use of NOdeJs, MongoDb and express technologies to create REST APIs.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Javascript",
+    "Nodejs",
+    "Express",
+    "MongoDb"
+  ],
+  "author": "sanit patil <thesanitpatil@gmail.com>",
+  "license": "ISC"
+}
