@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "this project contains the RESTFul APIs for youtube bakend. this project is purely based on Javascript and making use of NOdeJs, MongoDb and express technologies to create REST APIs.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -13,5 +16,14 @@
     "MongoDb"
   ],
   "author": "sanit patil <thesanitpatil@gmail.com>",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "mongoose": "^8.6.2"
+  }
 }
