@@ -1,6 +1,7 @@
 import e from "express";
 const app = e();
 
+// GLOBAL MIDDLEWARE TO  CATCH ALL ERROR NEXT
 app.use((err, req, res, next) => {
   if (err instanceof APIError) {
     return res.status(err.statusCode || 500).json({

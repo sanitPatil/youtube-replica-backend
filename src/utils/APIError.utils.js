@@ -15,6 +15,8 @@ class APIError extends Error {
       this.stack = stack;
     } else {
       Error.captureStackTrace(this, this.constructor);
+      // this: Refers to the current instance of the error object. The stack trace will be captured for this error object.
+      // this.constructor: This ensures that the stack trace will not include the current constructor call itself, making the trace more relevant by focusing on the external calls that led to the error.
     }
   }
 }
