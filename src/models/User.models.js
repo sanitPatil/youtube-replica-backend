@@ -32,7 +32,7 @@ const userSchema = new Schema(
     avatar: {
       type: String,
     },
-    coverimage: {
+    coverImage: {
       type: String,
       reuqired: true,
     },

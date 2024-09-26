@@ -1,5 +1,6 @@
 import "dotenv/config";
 import app from "./src/app.js";
+import { connectDB } from "./src/db/dbConnect.db.js";
 const PORT = process.env.PORT;
 
 const startServer = async () => {
@@ -11,6 +12,10 @@ const startServer = async () => {
   });
 };
 
-startServer();
-
-console.log("server started");
+connectDB()
+  .then((res) => {
+    startServer();
+  })
+  .catch((err) => {
+    console.log(`Mongo DB Connection failed:${err}`);
+  });
