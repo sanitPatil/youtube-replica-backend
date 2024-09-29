@@ -153,7 +153,7 @@ const loginUser = AsyncHandler(async (req, res, next) => {
 
     return res
       .cookie("accessToken", accessToken, httpOptions)
-      .cookie("refrshToken", refreshToken, httpOptions)
+      .cookie("refreshToken", refreshToken, httpOptions)
       .status(200)
       .json(
         new APIResponse(200, "user-successfully-logged-in", {
@@ -167,4 +167,33 @@ const loginUser = AsyncHandler(async (req, res, next) => {
     return next(new APIError(500, `server issue:failed to login`));
   }
 });
-export { registerUser, loginUser };
+
+// 3. logout user
+const logoutUser = AsyncHandler(async (req, res, next) => {
+  try {
+    await User.findByIdAndUpdate(
+      req?.user?._id,
+      {
+        $unset: {
+          refreshToken: 1,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+    const httpOptions = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    return res
+      .status(200)
+      .clearCookie("accessToken", httpOptions)
+      .clearCookie("refreshToken", httpOptions)
+      .json(new APIResponse(200, "user-logout-successfully", {}));
+  } catch (error) {
+    return next(new APIError(500, "server issue:failed to logout!!! "));
+  }
+});
+export { registerUser, loginUser, logoutUser };

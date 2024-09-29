@@ -1,6 +1,11 @@
 import e from "express";
-import { loginUser, registerUser } from "../controllers/User.controllers.js";
+import {
+  loginUser,
+  logoutUser,
+  registerUser,
+} from "../controllers/User.controllers.js";
 import { upload } from "../middlewares/Multer.middlewares.js";
+import { Authenticate } from "../middlewares/Auth.middlewares.js";
 const userRouter = e.Router();
 
 userRouter.route("/register").post(
@@ -17,4 +22,5 @@ userRouter.route("/register").post(
   registerUser
 );
 userRouter.route("/login").post(loginUser);
+userRouter.route("/logout").get(Authenticate, logoutUser);
 export { userRouter };
