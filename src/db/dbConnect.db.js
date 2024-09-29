@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-
+import { DB_NAME } from "../constant.js";
 const connectDB = async () => {
   try {
     // mongoose.connection.on("connected", () => console.log("connected"));
@@ -9,7 +9,7 @@ const connectDB = async () => {
     // mongoose.connection.on("disconnecting", () => console.log("disconnecting"));
     // mongoose.connection.on("close", () => console.log("close"));
     const connectionInstance = await mongoose.connect(
-      `${process.env.MONGODB_URL}/${process.env.DATABASE_NAME}`
+      `${process.env.MONGODB_URL}/${DB_NAME}`
     );
     console.log(
       `MongoDB successfully connected,with host:${connectionInstance.connection.host}`

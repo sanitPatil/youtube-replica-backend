@@ -7,18 +7,27 @@ cloudinary.config({
   api_secret: process.env.CLOUD_SECRET,
 });
 
-const uploadImage = async (localFilePath, filename, fileMimeType) => {
+const cloudinaryUpload = async (
+  localFilePath,
+  filename,
+  fileMimeType,
+  fileType
+) => {
   if (!localFilePath)
     return next(APIError(400, "Bad Request: File-Path-is-Missing"));
   if (!filename)
     return next(APIError(400, "Bad Request: File-Name-is-Missing"));
   if (!fileMimeType)
     return next(APIError(400, "Bad Request: File-Mime-Type-is-Missing"));
+  if (!fileType)
+    return next(APIError(400, "Bad Request: File-Type-is-Missing"));
+  const folder = fileType === "image" ? "images" : "videos";
+  const format = fileMimeType.split("/")[1];
   try {
     const res = await cloudinary.uploader.upload(localFilePath, {
       filename_override: filename,
-      folder: "users/images",
-      format: fileMimeType,
+      folder: `apiyoutube/${folder}`,
+      format: format,
     });
     fs.unlinkSync(localFilePath);
     return res;
@@ -27,8 +36,29 @@ const uploadImage = async (localFilePath, filename, fileMimeType) => {
     try {
       fs.unlinkSync(localFilePath);
     } catch (error) {
-      console.log(`failed to clean local storage`);
+      console.log(`failed to clean local storage:${error}`);
     }
     return next(APIError(500, "Server Issue:Failed to Uplaod File Over Cloud"));
   }
 };
+
+// "http://res.cloudinary.com/dgm1vt7qt/image/upload/v1727605993/apiyoutube/images/zxajf0i7m1l4dxuifp6z.jpg",
+//   cloudinary.v2.api
+//     .delete_resources(["apiyoutube/images/zxajf0i7m1l4dxuifp6z"], {
+//       type: "upload",
+//       resource_type: "image",
+//     })
+//     .then(console.log);
+
+const cloudinaryRemove = async (resource, resource_type) => {
+  try {
+    const res = await cloudinary.api.delete_resources([`${resource}`], {
+      type: `upload`,
+      resource_type: `${resource_type}`,
+    });
+    return res;
+  } catch (err) {
+    console.log(`Error While Removing Resource:${err}`);
+  }
+};
+export { cloudinaryUpload, cloudinaryRemove };
