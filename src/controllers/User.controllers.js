@@ -4,6 +4,7 @@ import { APIError } from "../utils/APIError.utils.js";
 import { APIResponse } from "../utils/APIResponse.utils.js";
 import { User } from "../models/User.models.js";
 import { cloudinaryUpload } from "../utils/Cloudinary.utils.js";
+import fs from "node:fs";
 // 1. register user
 const registerUser = AsyncHandler(async (req, res, next) => {
   //username, email,password, fullname,coverimage, avatar
@@ -20,16 +21,28 @@ const registerUser = AsyncHandler(async (req, res, next) => {
   if (!username || !email || !password || !fullname) {
     return next(new APIError(400, "Bad Request: Missing Required Fields!!!"));
   }
+  const files = req?.files;
+  const coverImage = files.coverImage[0];
+  const avatar = files.avatar[0];
   let checkUserExists = "";
   try {
     checkUserExists = await User.findOne({
       $or: [{ username }, { email }],
     });
   } catch (error) {
+    fs.unlinkSync(coverImage.path);
+    fs.unlinkSync(avatar.path);
     console.log(error);
     return next(new APIError(500, "server issue:", error));
   }
+
   if (checkUserExists) {
+    if (coverImage.path) {
+      fs.unlinkSync(coverImage.path);
+    }
+    if (avatar.path) {
+      fs.unlinkSync(avatar.path);
+    }
     return next(
       new APIError(
         400,
@@ -37,10 +50,6 @@ const registerUser = AsyncHandler(async (req, res, next) => {
       )
     );
   }
-
-  const files = req?.files;
-  const coverImage = files.coverImage[0];
-  const avatar = files.avatar[0];
 
   const uploadCoverImage = await cloudinaryUpload(
     coverImage.path,

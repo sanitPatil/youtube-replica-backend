@@ -42,14 +42,6 @@ const cloudinaryUpload = async (
   }
 };
 
-// "http://res.cloudinary.com/dgm1vt7qt/image/upload/v1727605993/apiyoutube/images/zxajf0i7m1l4dxuifp6z.jpg",
-//   cloudinary.v2.api
-//     .delete_resources(["apiyoutube/images/zxajf0i7m1l4dxuifp6z"], {
-//       type: "upload",
-//       resource_type: "image",
-//     })
-//     .then(console.log);
-
 const cloudinaryRemove = async (resource, resource_type) => {
   try {
     const res = await cloudinary.api.delete_resources([`${resource}`], {
