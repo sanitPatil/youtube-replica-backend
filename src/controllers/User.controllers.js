@@ -5,6 +5,23 @@ import { APIResponse } from "../utils/APIResponse.utils.js";
 import { User } from "../models/User.models.js";
 import { cloudinaryUpload } from "../utils/Cloudinary.utils.js";
 import fs from "node:fs";
+
+// GENERATE ACCESS AND REFRESH TOKEN
+const generateAccessRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = await user.generateAccessToken();
+    const refreshToken = await user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: true });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    console.log(`failed to generate access and refresh token `);
+  }
+};
+
 // 1. register user
 const registerUser = AsyncHandler(async (req, res, next) => {
   //username, email,password, fullname,coverimage, avatar
@@ -98,7 +115,56 @@ const registerUser = AsyncHandler(async (req, res, next) => {
 
   return res
     .status(201)
-    .json(new APIResponse(201, "user-created-successfully", getUser));
+    .json(new APIResponse(201, "user-created-successfully", { getUser }));
 });
 
-export { registerUser };
+// 2. login user
+const loginUser = AsyncHandler(async (req, res, next) => {
+  try {
+    const { email, password } = req?.body;
+
+    if (!email || !password)
+      return next(
+        new APIError(400, "Bad request: Email and Password required")
+      );
+
+    const user = await User.findOne({ email });
+    if (!user)
+      return next(new APIError(404, "user with this email not found!!!"));
+
+    const isPasswordValid = await user.validatePassword(password);
+
+    if (!isPasswordValid) {
+      return next(new APIError(401, "Authentication failed: invalid password"));
+    }
+
+    const { accessToken, refreshToken } = await generateAccessRefreshToken(
+      user._id
+    );
+
+    const loggedInUser = await User.findById(user._id).select(
+      "-password -refreshToken"
+    );
+
+    const httpOptions = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    return res
+      .cookie("accessToken", accessToken, httpOptions)
+      .cookie("refrshToken", refreshToken, httpOptions)
+      .status(200)
+      .json(
+        new APIResponse(200, "user-successfully-logged-in", {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        })
+      );
+  } catch (error) {
+    console.log(`login user failed ${error}`);
+    return next(new APIError(500, `server issue:failed to login`));
+  }
+});
+export { registerUser, loginUser };

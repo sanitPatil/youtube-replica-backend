@@ -1,5 +1,6 @@
 import express from "express";
 const app = express();
+import cookieParser from "cookie-parser";
 import { APIError } from "./utils/APIError.utils.js";
 
 app.use(
@@ -15,6 +16,7 @@ app.use(
   })
 );
 
+app.use(cookieParser());
 // U-S-E-R-O-U-T-E-R
 import { userRouter } from "./routers/User.routers.js";
 app.use("/api/v1/users", userRouter);
