@@ -4,6 +4,7 @@ import { connectDB } from "./src/db/dbConnect.db.js";
 const PORT = process.env.PORT;
 
 const startServer = async () => {
+  connectDB();
   app.listen(PORT, () => {
     console.log(`listening on PORT ${PORT}`);
   });
@@ -12,10 +13,4 @@ const startServer = async () => {
   });
 };
 
-connectDB()
-  .then((res) => {
-    startServer();
-  })
-  .catch((err) => {
-    console.log(`Mongo DB Connection failed:${err}`);
-  });
+startServer();
