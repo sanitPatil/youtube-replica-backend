@@ -14,6 +14,7 @@ app.use(
     extended: true,
   })
 );
+
 // U-S-E-R-O-U-T-E-R
 import { userRouter } from "./routers/User.routers.js";
 app.use("/api/v1/users", userRouter);
