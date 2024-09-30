@@ -26,6 +26,7 @@ const cloudinaryUpload = async (
       filename_override: filename,
       folder: `apiyoutube/${folder}`,
       format: format,
+      resource_type: `${fileType}`,
     });
     fs.unlinkSync(localFilePath);
     return res;
@@ -42,8 +43,9 @@ const cloudinaryUpload = async (
 
 const cloudinaryRemove = async (resource, resource_type) => {
   try {
+    const folder = resource_type === 'image' ? 'images' : 'videos';
     const res = await cloudinary.api.delete_resources(
-      [`apiyoutube/images/${resource}`],
+      [`apiyoutube/${folder}/${resource}`],
       {
         type: `upload`,
         resource_type: `${resource_type}`,

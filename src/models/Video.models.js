@@ -1,5 +1,5 @@
 // VIDEO MODELS
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema } from 'mongoose';
 
 const videoSchema = new Schema(
   {
@@ -26,17 +26,19 @@ const videoSchema = new Schema(
     views: {
       type: Number,
       required: true,
+      default: 0,
     },
     isPublished: {
       type: Boolean,
       required: true,
+      default: true,
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
     },
   },
   { timestamps: true }
 );
 
-export const Video = mongoose.model("Video", videoSchema);
+export const Video = mongoose.model('Video', videoSchema);
