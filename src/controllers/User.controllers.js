@@ -10,7 +10,7 @@ import {
 import fs from 'node:fs';
 
 // GENERATE ACCESS AND REFRESH TOKEN
-const generateAccessRefreshToken = async userId => {
+const generateAccessRefreshToken = async (userId) => {
   try {
     const user = await User.findById(userId);
     const accessToken = await user.generateAccessToken();
@@ -24,7 +24,14 @@ const generateAccessRefreshToken = async userId => {
     console.log(`failed to generate access and refresh token `);
   }
 };
-
+// GLOBAL METHOD
+const removeLocalFile = (path) => {
+  try {
+    fs.unlinkSync(path);
+  } catch (error) {
+    console.log(`File Not Found:${error}`);
+  }
+};
 // 1. register user
 const registerUser = AsyncHandler(async (req, res, next) => {
   const { username, email, password, fullname } = req?.body;
@@ -32,31 +39,29 @@ const registerUser = AsyncHandler(async (req, res, next) => {
     return next(new APIError(400, 'Bad Request: Missing Required Fields!!!'));
   }
   const files = req?.files;
+  if (!files) return next(new APIError(400, `required files are missing`));
+
   const coverImage = files.coverImage[0];
   const avatar = files.avatar[0];
+
   let checkUserExists = '';
   try {
     checkUserExists = await User.findOne({
       $or: [{ username }, { email }],
     });
   } catch (error) {
-    fs.unlinkSync(coverImage.path);
-    fs.unlinkSync(avatar.path);
-    console.log(error);
-    return next(new APIError(500, 'server issue:', error));
+    removeLocalFile(coverImage.path);
+    removeLocalFile(avatar.path);
+    return next(new APIError(500, 'server issue:failed to find user', error));
   }
 
   if (checkUserExists) {
-    if (coverImage.path) {
-      fs.unlinkSync(coverImage.path);
-    }
-    if (avatar.path) {
-      fs.unlinkSync(avatar.path);
-    }
+    removeLocalFile(coverImage.path);
+    removeLocalFile(avatar.path);
     return next(
       new APIError(
         400,
-        'Bad Request: User With EMail and Username Already Exists!!!'
+        'Bad Request: User With Email and Username Already Exists!!!'
       )
     );
   }
@@ -78,10 +83,13 @@ const registerUser = AsyncHandler(async (req, res, next) => {
     avatar.mimetype,
     avatar.mimetype.split('/')[0]
   );
-  if (!uploadCoverImage)
+  if (!uploadCoverImage) {
+    const coverResource = uploadCoverImage.split('/')[9].split('.')[0];
+    await cloudinaryRemove(coverResource, 'image');
     return next(
       new APIError(500, 'Server Issue:failed to uplaod on cloudinary')
     );
+  }
 
   let createUser = '';
   try {
@@ -94,10 +102,19 @@ const registerUser = AsyncHandler(async (req, res, next) => {
       coverImage: uploadCoverImage?.url || '',
     });
   } catch (error) {
+    const avatarResource = uploadAvatar.split('/')[9].split('.')[0];
+    const coverResource = uploadCoverImage.split('/')[9].split('.')[0];
+    await cloudinaryRemove(avatarResource, 'image');
+    await cloudinaryRemove(coverResource, 'image');
     console.log(`error while registerating-user:${error}`);
   }
-  if (!createUser)
+  if (!createUser) {
+    const avatarResource = uploadAvatar.split('/')[9].split('.')[0];
+    const coverResource = uploadCoverImage.split('/')[9].split('.')[0];
+    await cloudinaryRemove(avatarResource, 'image');
+    await cloudinaryRemove(coverResource, 'image');
     return next(new APIError(500, 'server issue:db failed to create user'));
+  }
 
   const getUser = await User.findOne({ _id: createUser._id }).select(
     '-password -refreshToken'
