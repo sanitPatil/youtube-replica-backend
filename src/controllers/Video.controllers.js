@@ -5,31 +5,29 @@ import {
   cloudinaryRemove,
   cloudinaryUpload,
 } from '../utils/Cloudinary.utils.js';
-
 import fs from 'node:fs';
 import { Video } from '../models/Video.models.js';
+import { User } from '../models/User.models.js';
+
+removeLocalPath = (path) => {
+  try {
+    fs.unlinkSync(path);
+  } catch (error) {
+    console.log(`file not found`);
+  }
+};
 // 1. video save
-const createVideo = AsyncHandler(async (req, res, next) => {
+const publishVideo = AsyncHandler(async (req, res, next) => {
   try {
     const { title, description, isPublished } = req?.body;
 
     const files = req?.files;
     const thumbnail = files?.thumbnail[0];
     const videoFile = files?.videoFile[0];
-    // console.log(thumbnail);
-    // console.log(videoFile);
 
     if (!title || !description) {
-      try {
-        if (thumbnail) fs.unlinkSync(thumbnail.path);
-      } catch (error) {
-        console.log('file not found');
-      }
-      try {
-        if (videoFile) fs.unlinkSync(videoFile.path);
-      } catch (error) {
-        console.log('file not found');
-      }
+      removeLocalPath(thumbnail.path);
+      removeLocalPath(videoFile.path);
       return next(
         new APIError(
           400,
@@ -40,8 +38,10 @@ const createVideo = AsyncHandler(async (req, res, next) => {
     if (!thumbnail)
       return next(new APIError(400, `Bad Reqeuest:thumbnail is missing`));
 
-    if (!videoFile)
+    if (!videoFile) {
+      removeLocalPath(thumbnail.path);
       return next(new APIError(400, `Bad Reqeuest:videoFile is missing`));
+    }
 
     const uploadThumbnail = await cloudinaryUpload(
       thumbnail.path,
@@ -49,9 +49,9 @@ const createVideo = AsyncHandler(async (req, res, next) => {
       thumbnail.mimetype,
       thumbnail.mimetype.split('/')[0]
     );
-    if (!uploadThumbnail)
+    if (!uploadThumbnail) {
       return next(new APIError(500, `server issue failed to uplaod thumbnail`));
-
+    }
     const uploadVideoFile = await cloudinaryUpload(
       videoFile.path,
       videoFile.filename,
@@ -74,10 +74,17 @@ const createVideo = AsyncHandler(async (req, res, next) => {
       owner: req?.user?._id,
     });
 
-    if (!videoSave)
+    if (!videoSave) {
+      const thumbnailUrl = uploadThumbnail.url.split('/')[9].split('.')[0];
+      await cloudinaryRemove(thumbnailUrl, 'image');
+
+      const videoFileUrl = uploadVideoFile.url.split('/')[9].split('.')[0];
+      await cloudinaryRemove(videoFileUrl, 'video');
+
       return next(
         new APIError(500, `server issue failed to upload video object`)
       );
+    }
 
     return res
       .status(200)
@@ -88,8 +95,8 @@ const createVideo = AsyncHandler(async (req, res, next) => {
   }
 });
 
-// 2. get video
-const getVideo = AsyncHandler(async (req, res, next) => {
+// 2. get video by id
+const getVideoById = AsyncHandler(async (req, res, next) => {
   try {
     const { videoId } = req?.params;
     if (!videoId)
@@ -98,6 +105,16 @@ const getVideo = AsyncHandler(async (req, res, next) => {
     const videoFile = await Video.findById(videoId);
     if (!videoFile)
       return next(new APIError(500, 'failed to get requested Video'));
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $push: {
+          watchHistory: videoFile._id,
+        },
+      },
+      { new: true }
+    ).select('-password -refreshToken');
 
     return res
       .status(200)
@@ -114,24 +131,16 @@ const updateVideo = AsyncHandler(async (req, res, next) => {
     const { videoId } = req?.params;
     const videoFile = req?.file;
     if (!videoId) {
-      try {
-        if (videoFile.path) fs.unlinkSync(videoFile.path);
-      } catch (error) {
-        console.log('file not Found ');
-      }
+      removeLocalPath(videoFile.path);
       return next(new APIError(400, `Bad Request: video id is missing`));
     }
     if (!videoFile)
       return next(new APIError(400, `Bad Request: video file is missing`));
 
-    const video = await Video.findById(videoId);
+    const video = await Video.findById({ _id: videoId, owner: req.user._id });
     if (!video) {
-      try {
-        if (videoFile.path) fs.unlinkSync(videoFile.path);
-      } catch (error) {
-        console.log('file not Found ');
-      }
-      return next(new AP(500, `server issue:failed to get file`));
+      removeLocalPath(videoFile.path);
+      return next(new AP(500, `You dont have Authority to update`));
     }
 
     const uploadVideoFile = await cloudinaryUpload(
@@ -141,16 +150,10 @@ const updateVideo = AsyncHandler(async (req, res, next) => {
       videoFile.mimetype.split('/')[0]
     );
     if (!uploadVideoFile) {
-      try {
-        if (videoFile.path) fs.unlinkSync(videoFile.path);
-      } catch (error) {
-        console.log('file not Found ');
-      }
       return next(new APIError(500, `server issue failed to uplaod videoFile`));
     }
 
     const videoFileUrl = video?.videoFile?.split('/')[9].split('.')[0];
-    console.log(videoFileUrl);
 
     const remResource = await cloudinaryRemove(videoFileUrl, 'video');
     if (!remResource) console.log(`failed to remove resource`);
@@ -159,7 +162,6 @@ const updateVideo = AsyncHandler(async (req, res, next) => {
     await video.save({ validateBeforeSave: false });
 
     const videoRes = await Video.findById(videoId);
-
     res
       .status(200)
       .json(new APIResponse(200, `successfully-update-video`, videoRes));
@@ -178,18 +180,15 @@ const deleteVideo = AsyncHandler(async (req, res, next) => {
     if (!videoId)
       return next(new APIError(400, `Bad Request:missing video id`));
 
-    const video = await Video.findById(videoId);
-    if (!video)
-      return next(new APIError(404, `video with given id not found!!!`));
-
-    const res = Video.findByIdAndDelete(videoId);
-
-    if (!res)
-      return next(new APIError(500, `server issue:failed to remove video!!!`));
+    const video = await Video.findOneAndDelete({
+      _id: videoId,
+      owner: req.user._id,
+    });
+    if (!video) return next(new APIError(401, 'Un-Autherized Access.'));
 
     return res
       .status(200)
-      .json(new APIResponse(200, `successfully-remove-video`, {}));
+      .json(new APIResponse(200, `successfully deleted requested video`, {}));
   } catch (error) {
     console.log(`server issue:failed to delete video${error}`);
     return next(
@@ -235,8 +234,10 @@ const updateVideoDetails = AsyncHandler(async (req, res, next) => {
 // ispublished
 const toggleIsPublished = AsyncHandler(async (req, res, next) => {
   try {
-    const { isPublished, videoId } = req.body;
+    const { videoId } = req.params;
+    const { isPublished } = req.body;
     if (!videoId) return next(new APIError(400, `Bad Request:mising video id`));
+
     if (!isPublished)
       return next(new APIError(400, 'Bad Request missing isPublished state'));
 
@@ -272,8 +273,10 @@ const getAllVideos = AsyncHandler(async (req, res, next) => {
     const pageVal = Number(page);
     const limitVal = Number(limit);
     const skipVal = (pageVal - 1) * limitVal;
-
-    const videoArr = await Video.find().skip(skipVal).limit(limitVal);
+    const videoArr = await Video.find()
+      .skip(skipVal)
+      .limit(limitVal)
+      .sort({ [sortType]: sortBy || 1 });
     if (!videoArr) return next(new APIError(500, `failed to get All videos`));
 
     return res.status(200).json(
@@ -292,11 +295,7 @@ const updateThumbnail = AsyncHandler(async (req, res, next) => {
     const { videoId } = req?.params;
     const thumbnail = req.file;
     if (!videoId) {
-      try {
-        fs.unlinkSync(thumbnail.path);
-      } catch (error) {
-        console.log(`file not found`);
-      }
+      removeLocalPath(thumbnail.path);
       return next(new APIError(400, `Bad Requst:video id missing`));
     }
 
@@ -331,4 +330,14 @@ const updateThumbnail = AsyncHandler(async (req, res, next) => {
     );
   }
 });
-export { createVideo, getVideo, updateVideo, deleteVideo };
+
+export {
+  publishVideo,
+  getVideoById,
+  updateVideo,
+  deleteVideo,
+  updateVideoDetails,
+  toggleIsPublished,
+  getAllVideos,
+  updateThumbnail,
+};
