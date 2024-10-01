@@ -8,6 +8,7 @@ import {
   cloudinaryUpload,
 } from '../utils/Cloudinary.utils.js';
 import fs from 'node:fs';
+import mongoose from 'mongoose';
 
 // GENERATE ACCESS AND REFRESH TOKEN
 const generateAccessRefreshToken = async (userId) => {
@@ -210,12 +211,9 @@ const logoutUser = AsyncHandler(async (req, res, next) => {
 
 const getCurrentUserDetails = AsyncHandler(async (req, res, next) => {
   try {
-    const user = req?.user;
-    if (!user) return next(new APIError(401, 'Un-Autherized Access'));
-
     return res.status(200).json(
       new APIResponse(200, 'successfully-fetch-current-login-user-details', {
-        user,
+        user: req.user,
       })
     );
   } catch (error) {
@@ -235,9 +233,11 @@ const updateUserDetails = AsyncHandler(async (req, res, next) => {
     const user = await User.findByIdAndUpdate(
       req?.user?._id,
       {
-        username: req?.body.username || req?.user.username,
-        fullname: req?.body?.fullname || req?.user?.fullname,
-        email: req?.body?.email || req?.user?.email,
+        $set: {
+          username: req?.body.username || req?.user.username,
+          fullname: req?.body?.fullname || req?.user?.fullname,
+          email: req?.body?.email || req?.user?.email,
+        },
       },
       {
         new: true,
@@ -249,7 +249,7 @@ const updateUserDetails = AsyncHandler(async (req, res, next) => {
 
     res
       .status(200)
-      .json(new APIResponse(200, `user-details-update-successful`));
+      .json(new APIResponse(200, `user-details-update-successful`, { user }));
   } catch (error) {
     console.log(`failed to update details`, error);
     return next(new APIResponse(500, `server issue:${error}`));
@@ -274,10 +274,10 @@ const updateCoverImage = AsyncHandler(async (req, res, next) => {
       return next(
         new APIError(500, `server issue:failed to upload image on cloud`)
       );
-    const coverUrl = req?.user?.coverImage?.split('/')[9].split('.')[0];
-    console.log(coverUrl);
 
+    const coverUrl = req?.user?.coverImage?.split('/')[9].split('.')[0];
     const remResource = await cloudinaryRemove(coverUrl, 'image');
+
     if (!remResource) console.log(`failed to remove resource`);
 
     const userUpdate = await User.findByIdAndUpdate(
@@ -292,13 +292,17 @@ const updateCoverImage = AsyncHandler(async (req, res, next) => {
       return next(
         new APIError(500, 'server issue:failed to update cover-image')
       );
+
     req.user = userUpdate;
+
     return res
       .status(200)
       .json(new APIResponse(200, 'update-cover-image-successfully', {}));
   } catch (error) {
     console.log(`failed to update coverImage${error}`);
-    return next(new APIError(500, 'server issue:', error));
+    return next(
+      new APIError(500, 'server issue:failed to update cover-image', error)
+    );
   }
 });
 
@@ -320,9 +324,8 @@ const updateAvatar = AsyncHandler(async (req, res, next) => {
         new APIError(500, `server issue:failed to upload image on cloud`)
       );
     const avatarUrl = req?.user?.avatar?.split('/')[9].split('.')[0];
-    console.log(avatarUrl);
-
     const remResource = await cloudinaryRemove(avatarUrl, 'image');
+
     if (!remResource) console.log(`failed to remove resource`);
 
     const userUpdate = await User.findByIdAndUpdate(
@@ -353,7 +356,7 @@ const updatePassword = AsyncHandler(async (req, res, next) => {
   try {
     const { oldPassword, newPassword } = req?.body;
     if (!oldPassword || !newPassword)
-      return next(new APIError(400, `password filed is missing`));
+      return next(new APIError(400, `password fields are missing`));
 
     const user = await User.findById(req?.user?._id);
 
@@ -361,12 +364,11 @@ const updatePassword = AsyncHandler(async (req, res, next) => {
 
     if (!isPasswordValid)
       return next(
-        new APIError(401, `Un-Autherized Access: password does not match`)
+        new APIError(401, `Un-Autherized Access: In-valid password.`)
       );
 
     user.password = newPassword;
     await user.save({ validateBeforeSave: false });
-
     res
       .status(200)
       .json(new APIResponse(200, `password-update-successfully`, {}));
@@ -413,10 +415,135 @@ const deleteAccount = AsyncHandler(async (req, res, next) => {
       .json(new APIResponse(200, `User-Deleted-Successfully`, {}));
   } catch (error) {
     console.log('delete-account', error);
-    return next(new APIResponse(500, 'server issue', error));
+    return next(new APIError(500, 'server issue', error));
   }
 });
 
+// 10 .watch history
+const getWatchHisotry = AsyncHandler(async (req, res, next) => {
+  try {
+    const user = await User.aggregate([
+      {
+        $match: { _id: new mongoose.Types.ObjectId(req.user._id) },
+      },
+      {
+        $lookup: {
+          from: 'videos',
+          localField: 'watchHistory',
+          foreignField: '_id',
+          as: `watchHistory`,
+          pipeline: [
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'owner',
+                foreignField: '_id',
+                as: 'owner',
+                pipeline: [
+                  {
+                    $project: {
+                      _id: 1,
+                      username: 1,
+                      avatar: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $addFields: {
+                owner: {
+                  $first: '$owner',
+                },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    return res
+      .status(200)
+      .json(new APIResponse(200, `successfully fetch watch history`, user));
+  } catch (error) {
+    console.log(`failed to get watch  history${error}`);
+    return next(new APIError(500, `failed to get watch hisotry`, error));
+  }
+});
+
+// 11. get-user-channel-profile
+const getUserChannelProfile = AsyncHandler(async (req, res, next) => {
+  try {
+    const { username } = req.body;
+    if (!username.trim())
+      return next(new APIError(400, `Bad Request:missing username`));
+
+    const channelProfile = await User.aggregate([
+      {
+        $match: {
+          username: username?.toLowerCase(),
+        },
+      },
+      {
+        $lookup: {
+          from: 'subscriptions',
+          localField: '_id',
+          foreignField: 'channel',
+          as: 'subscribers',
+        },
+      },
+      {
+        $lookup: {
+          from: 'subscriptions',
+          localField: '_id',
+          foreignField: 'subscriber',
+          as: 'subscribeTo',
+        },
+      },
+      {
+        $addFields: {
+          subscribersCount: {
+            $size: '$subscribers',
+          },
+          channelsSubscribedToCount: {
+            $size: '$subscribeTo',
+          },
+          isSubscribed: {
+            $cond: {
+              if: { $in: [req?.user._id, '$subscribers.subscriber'] },
+              then: true,
+              else: false,
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          fullName: 1,
+          username: 1,
+          subscribersCount: 1,
+          channelsSubscribedToCount: 1,
+          isSubscribed: 1,
+          avatar: 1,
+          coverImage: 1,
+          email: 1,
+        },
+      },
+    ]);
+    returnres
+      .status(200)
+      .json(
+        new APIResponse(
+          200,
+          `successfully-fetch-channel-profile`,
+          channelProfile
+        )
+      );
+  } catch (error) {
+    console.log(`server issue failed to get channel details`, error);
+    return next(new APIError(500, `failed to get user channel profile`));
+  }
+});
 export {
   registerUser,
   loginUser,
@@ -427,4 +554,6 @@ export {
   updateAvatar,
   updatePassword,
   deleteAccount,
+  getWatchHisotry,
+  getUserChannelProfile,
 };
