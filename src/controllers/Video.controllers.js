@@ -115,10 +115,20 @@ const getVideoById = AsyncHandler(async (req, res, next) => {
       },
       { new: true }
     ).select('-password -refreshToken');
+    const viewsCount = videoFile.views + 1;
+    const video = await Video.findByIdAndUpdate(
+      videoFile._id,
+      {
+        $set: {
+          views: viewsCount,
+        },
+      },
+      { new: true }
+    );
 
     return res
       .status(200)
-      .json(new APIResponse(200, 'video-fetch-successfully', { videoFile }));
+      .json(new APIResponse(200, 'video-fetch-successfully', { video }));
   } catch (error) {
     console.log(`video-get-error-${error}`);
     return next(new APIError(500, 'failed to load requested video', error));
