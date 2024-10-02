@@ -1,7 +1,7 @@
 import { APIError } from '../utils/APIError.utils.js';
 import { APIResponse } from '../utils/APIResponse.utils.js';
 import { Comment } from '../models/Comments.models.js';
-const getVideoComments = asyncHandler(async (req, res) => {
+const getVideoComments = asyncHandler(async (req, res, next) => {
   try {
     //TODO: get all comments for a video
     const { videoId } = req.params;
@@ -27,7 +27,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
   }
 });
 
-const addComment = asyncHandler(async (req, res) => {
+const addComment = asyncHandler(async (req, res, next) => {
   // TODO: add a comment to a video content video-link owner-user
   try {
     const { videoId } = req.params;
@@ -38,7 +38,7 @@ const addComment = asyncHandler(async (req, res) => {
       return next(new APIError(400, 'Bad Request:Missing comment field'));
 
     const comment = await Comment.create({
-      comment,
+      content,
       video: videoId,
       owner: req.user._id,
     });
@@ -54,7 +54,7 @@ const addComment = asyncHandler(async (req, res) => {
   }
 });
 
-const updateComment = asyncHandler(async (req, res) => {
+const updateComment = asyncHandler(async (req, res, next) => {
   try {
     // TODO: update a comment
     const { commentId, content } = req.body;
@@ -70,7 +70,13 @@ const updateComment = asyncHandler(async (req, res) => {
       owner: req.user._id,
     });
 
-    if (!comment) return next(new APIError(401, `Unautorized Access`));
+    if (!comment)
+      return next(
+        new APIError(
+          401,
+          `Unautorized Access, you dont have rights to update comment whos you are not owner`
+        )
+      );
 
     comment.content = content;
     await comment.save({ validateBeforeSave: true });
@@ -84,7 +90,7 @@ const updateComment = asyncHandler(async (req, res) => {
   }
 });
 
-const deleteComment = asyncHandler(async (req, res) => {
+const deleteComment = asyncHandler(async (req, res, next) => {
   try {
     const { commentId } = req.body;
 

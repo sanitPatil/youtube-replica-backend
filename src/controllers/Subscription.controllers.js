@@ -2,7 +2,7 @@ import { APIError } from '../utils/APIError.utils.js';
 import { APIResponse } from '../utils/APIResponse.utils.js';
 import { Subscriptions } from '../models/Subscriptions.models.js';
 import { User } from '../models/User.models.js';
-const toggleSubscription = asyncHandler(async (req, res) => {
+const toggleSubscription = asyncHandler(async (req, res, next) => {
   // TODO: toggle subscription
   try {
     const { channelId } = req.params;
@@ -38,7 +38,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 });
 
 // controller to return subscriber list of a channel
-const getUserChannelSubscribers = asyncHandler(async (req, res) => {
+const getUserChannelSubscribers = asyncHandler(async (req, res, next) => {
   try {
     const { channelId } = req.params;
     if (!channelId)
@@ -47,7 +47,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
     const list = await User.aggregate([
       {
         $match: {
-          _id: channelId,
+          _id: channelId, // channel-> user
         },
       },
       {
@@ -92,7 +92,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 });
 
 // controller to return channel list to which user has subscribed
-const getSubscribedChannels = asyncHandler(async (req, res) => {
+const getSubscribedChannels = asyncHandler(async (req, res, next) => {
   try {
     const { subscriberId } = req.params;
     if (!subscriberId)
