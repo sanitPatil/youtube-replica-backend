@@ -2,6 +2,8 @@ import { APIError } from '../utils/APIError.utils.js';
 import { APIResponse } from '../utils/APIResponse.utils.js';
 import { Subscriptions } from '../models/Subscriptions.models.js';
 import { User } from '../models/User.models.js';
+import { asyncHandler } from '../utils/AsyncHandler.utils.js';
+
 const toggleSubscription = asyncHandler(async (req, res, next) => {
   // TODO: toggle subscription
   try {

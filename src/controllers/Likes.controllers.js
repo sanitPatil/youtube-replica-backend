@@ -1,6 +1,7 @@
 import { LikeBy } from '../models/Likes.models';
 import { APIError } from '../utils/APIError.utils.js';
 import { APIResponse } from '../utils/APIResponse.utils.js';
+import { asyncHandler } from '../utils/AsyncHandler.utils.js';
 
 const toggleVideoLike = asyncHandler(async (req, res, next) => {
   //TODO: toggle like on video

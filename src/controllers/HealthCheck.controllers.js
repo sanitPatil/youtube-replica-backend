@@ -1,4 +1,5 @@
 import { APIResponse } from '../utils/APIResponse.utils.js';
+import { asyncHandler } from '../utils/AsyncHandler.utils.js';
 
 const healthcheck = asyncHandler(async (req, res, next) => {
   //TODO: build a healthcheck response that simply returns the OK status as json with a message
