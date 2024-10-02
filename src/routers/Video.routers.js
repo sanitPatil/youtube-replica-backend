@@ -1,6 +1,9 @@
 import e from 'express';
 import { Authenticate } from '../middlewares/Auth.middlewares.js';
-import { createVideo, getVideo } from '../controllers/Video.controllers.js';
+import {
+  getVideoById,
+  publishVideo,
+} from '../controllers/Video.controllers.js';
 import { upload } from '../middlewares/Multer.middlewares.js';
 const videoRouter = e.Router();
 
@@ -16,7 +19,7 @@ videoRouter.route('/upload-video').post(
       maxCount: 1,
     },
   ]),
-  createVideo
+  publishVideo
 );
-videoRouter.route('/get-video/:videoId').get(getVideo);
+videoRouter.route('/get-video/:videoId').get(getVideoById);
 export { videoRouter };

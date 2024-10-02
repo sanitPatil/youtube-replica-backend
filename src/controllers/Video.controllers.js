@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import { Video } from '../models/Video.models.js';
 import { User } from '../models/User.models.js';
 
-removeLocalPath = (path) => {
+const removeLocalPath = (path) => {
   try {
     fs.unlinkSync(path);
   } catch (error) {
