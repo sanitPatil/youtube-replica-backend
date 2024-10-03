@@ -25,6 +25,10 @@ app.use('/api/v1/users', userRouter);
 import { videoRouter } from './routers/Video.routers.js';
 app.use('/api/v1/videos', videoRouter);
 
+// D-A-S-H-B-O-A-R-D-R-O-U-T-E-R
+import { dashboardRouter } from './routers/Dashboard.routers.js';
+app.use('/api/v1/stats', dashboardRouter);
+
 // GLOBAL MIDDLEWARE TO  CATCH ALL ERROR NEXT
 app.use((err, req, res, next) => {
 	if (err instanceof APIError) {
