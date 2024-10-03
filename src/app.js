@@ -46,6 +46,10 @@ app.use('/api/v1/likes', likeRouter);
 import { commentRouter } from './routers/Comments.routers.js';
 app.use('/api/v1/comments', commentRouter);
 
+//P-L-A-Y-L-I-S-T-R-O-U-T-E-R
+import { playlistRouter } from './routers/Playlist.routers.js';
+app.use('/api/v1/playlists', playlistRouter);
+
 // GLOBAL MIDDLEWARE TO  CATCH ALL ERROR NEXT
 app.use((err, req, res, next) => {
 	if (err instanceof APIError) {
