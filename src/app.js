@@ -38,6 +38,8 @@ app.use((err, req, res, next) => {
     return res.status(500).json({
       message: 'internal server issue!',
       success: false,
+      error: err.message,
+      stack: err.stack,
     });
   }
 });
