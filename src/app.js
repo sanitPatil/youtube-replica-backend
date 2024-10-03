@@ -33,6 +33,10 @@ app.use('/api/v1/stats', dashboardRouter);
 import { healthRouter } from './routers/HeathStatus.routers.js';
 app.use('/api/v1/health', healthRouter);
 
+//S-U-B-S-C-R-I-P-T-I-O-N-S-R-O-U-T-E-R
+import { subsRouter } from './routers/Subscriptions.routers.js';
+app.use('/api/v1/subscriptions', subsRouter);
+
 // GLOBAL MIDDLEWARE TO  CATCH ALL ERROR NEXT
 app.use((err, req, res, next) => {
 	if (err instanceof APIError) {
