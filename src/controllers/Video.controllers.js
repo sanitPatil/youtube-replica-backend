@@ -2,352 +2,381 @@ import { AsyncHandler } from '../utils/AsyncHandler.utils.js';
 import { APIError } from '../utils/APIError.utils.js';
 import { APIResponse } from '../utils/APIResponse.utils.js';
 import {
-  cloudinaryRemove,
-  cloudinaryUpload,
+	cloudinaryRemove,
+	cloudinaryUpload,
 } from '../utils/Cloudinary.utils.js';
 import fs from 'node:fs';
 import { Video } from '../models/Video.models.js';
 import { User } from '../models/User.models.js';
 
 const removeLocalPath = (path) => {
-  try {
-    fs.unlinkSync(path);
-  } catch (error) {
-    console.log(`file not found`);
-  }
+	try {
+		fs.unlinkSync(path);
+	} catch (error) {
+		console.log(`file not found`);
+	}
 };
 // 1. video save
 const publishVideo = AsyncHandler(async (req, res, next) => {
-  try {
-    const { title, description, isPublished } = req?.body;
+	try {
+		const { title, description, isPublished } = req?.body;
 
-    const files = req?.files;
-    const thumbnail = files?.thumbnail[0];
-    const videoFile = files?.videoFile[0];
+		if (!title || !description) {
+			removeLocalPath(thumbnail.path);
+			removeLocalPath(videoFile.path);
+			return next(
+				new APIError(
+					400,
+					`Bad Request:title and description fileds are missing!`
+				)
+			);
+		}
 
-    if (!title || !description) {
-      removeLocalPath(thumbnail.path);
-      removeLocalPath(videoFile.path);
-      return next(
-        new APIError(
-          400,
-          `Bad Request:title and description fileds are missing!`
-        )
-      );
-    }
-    if (!thumbnail)
-      return next(new APIError(400, `Bad Reqeuest:thumbnail is missing`));
+		const files = req?.files;
+		if (!files || Object.keys(files).length === 0) {
+			return next(new APIError(400, `Bad Reqeuest:missing files`));
+		} else if (!files.thumbnail || !files?.thumbnail[0]) {
+			removeLocalPath(files?.videoFile[0]?.path);
+			return next(new APIError(400, `Bad Reqeuest:missing thumbnail files`));
+		} else if (!files.videoFile || !files.videoFile[0]) {
+			removeLocalPath(files?.thumbnail[0]?.path);
+			return next(new APIError(400, `Bad Reqeuest:missing video files`));
+		}
 
-    if (!videoFile) {
-      removeLocalPath(thumbnail.path);
-      return next(new APIError(400, `Bad Reqeuest:videoFile is missing`));
-    }
+		const thumbnail = files?.thumbnail[0];
+		const videoFile = files?.videoFile[0];
 
-    const uploadThumbnail = await cloudinaryUpload(
-      thumbnail.path,
-      thumbnail.filename,
-      thumbnail.mimetype,
-      thumbnail.mimetype.split('/')[0]
-    );
-    if (!uploadThumbnail) {
-      return next(new APIError(500, `server issue failed to uplaod thumbnail`));
-    }
-    const uploadVideoFile = await cloudinaryUpload(
-      videoFile.path,
-      videoFile.filename,
-      videoFile.mimetype,
-      videoFile.mimetype.split('/')[0]
-    );
-    if (!uploadVideoFile) {
-      const thumbnailUrl = uploadThumbnail.url.split('/')[9].split('.')[0];
-      await cloudinaryRemove(thumbnailUrl, 'image');
-      return next(new APIError(500, `server issue failed to uplaod videoFile`));
-    }
+		const uploadThumbnail = await cloudinaryUpload(
+			thumbnail.path,
+			thumbnail.filename,
+			thumbnail.mimetype,
+			thumbnail.mimetype.split('/')[0]
+		);
+		if (!uploadThumbnail) {
+			return next(new APIError(500, `server issue failed to uplaod thumbnail`));
+		}
+		const uploadVideoFile = await cloudinaryUpload(
+			videoFile.path,
+			videoFile.filename,
+			videoFile.mimetype,
+			videoFile.mimetype.split('/')[0]
+		);
+		if (!uploadVideoFile) {
+			const thumbnailUrl = uploadThumbnail.url.split('/')[9].split('.')[0];
+			await cloudinaryRemove(thumbnailUrl, 'image');
+			return next(new APIError(500, `server issue failed to uplaod videoFile`));
+		}
 
-    const videoSave = await Video.create({
-      title,
-      description,
-      thumbnail: uploadThumbnail.url,
-      videoFile: uploadVideoFile.url,
-      duration: uploadVideoFile.duration,
-      isPublished: isPublished === 'true' ? true : false,
-      owner: req?.user?._id,
-    });
+		const videoSave = await Video.create({
+			title,
+			description,
+			thumbnail: uploadThumbnail.url,
+			videoFile: uploadVideoFile.url,
+			duration: uploadVideoFile.duration,
+			isPublished: isPublished === 'true' ? true : false,
+			owner: req?.user?._id,
+		});
 
-    if (!videoSave) {
-      const thumbnailUrl = uploadThumbnail.url.split('/')[9].split('.')[0];
-      await cloudinaryRemove(thumbnailUrl, 'image');
+		if (!videoSave) {
+			const thumbnailUrl = uploadThumbnail.url.split('/')[9].split('.')[0];
+			await cloudinaryRemove(thumbnailUrl, 'image');
 
-      const videoFileUrl = uploadVideoFile.url.split('/')[9].split('.')[0];
-      await cloudinaryRemove(videoFileUrl, 'video');
+			const videoFileUrl = uploadVideoFile.url.split('/')[9].split('.')[0];
+			await cloudinaryRemove(videoFileUrl, 'video');
 
-      return next(
-        new APIError(500, `server issue failed to upload video object`)
-      );
-    }
+			return next(
+				new APIError(500, `server issue failed to upload video object`)
+			);
+		}
 
-    return res
-      .status(200)
-      .json(new APIResponse(200, 'video-save-successfully', videoSave));
-  } catch (error) {
-    console.log('video-create-error:', error);
-    return next(new APIError(500, 'failed to create video', error));
-  }
+		return res
+			.status(200)
+			.json(new APIResponse(200, 'video-save-successfully', videoSave));
+	} catch (error) {
+		console.log('video-create-error:', error);
+		return next(new APIError(500, 'failed to create video', error));
+	}
 });
 
 // 2. get video by id
 const getVideoById = AsyncHandler(async (req, res, next) => {
-  try {
-    const { videoId } = req?.params;
-    if (!videoId)
-      return next(new APIError(400, 'Bad Request:video-Id is Missing'));
+	try {
+		const { videoId } = req?.params;
+		if (!videoId)
+			return next(new APIError(400, 'Bad Request:video-Id is Missing'));
 
-    const videoFile = await Video.findById(videoId);
-    if (!videoFile)
-      return next(new APIError(500, 'failed to get requested Video'));
+		const videoFile = await Video.findById(videoId);
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      {
-        $push: {
-          watchHistory: videoFile._id,
-        },
-      },
-      { new: true }
-    ).select('-password -refreshToken');
-    const viewsCount = videoFile.views + 1;
-    const video = await Video.findByIdAndUpdate(
-      videoFile._id,
-      {
-        $set: {
-          views: viewsCount,
-        },
-      },
-      { new: true }
-    );
+		if (!videoFile)
+			return next(new APIError(500, 'failed to get requested Video'));
 
-    return res
-      .status(200)
-      .json(new APIResponse(200, 'video-fetch-successfully', { video }));
-  } catch (error) {
-    console.log(`video-get-error-${error}`);
-    return next(new APIError(500, 'failed to load requested video', error));
-  }
+		const user = await User.findOne(req.user._id);
+
+		if (!user.watchHistory.includes(videoId)) {
+			user.watchHistory.push(videoId);
+			await user.save({ validateBeforeSave: false });
+		}
+
+		const video = await Video.findByIdAndUpdate(
+			videoFile._id,
+			{
+				$inc: { views: 1 },
+			},
+			{ new: true, validateBeforeSave: false }
+		);
+		return res
+			.status(200)
+			.json(new APIResponse(200, 'video-fetch-successfully', { video }));
+	} catch (error) {
+		console.log(`video-get-error-${error}`);
+		return next(new APIError(500, 'failed to load requested video', error));
+	}
 });
 
-// 3. update video
+// 3. update video by id
 const updateVideo = AsyncHandler(async (req, res, next) => {
-  try {
-    const { videoId } = req?.params;
-    const videoFile = req?.file;
-    if (!videoId) {
-      removeLocalPath(videoFile.path);
-      return next(new APIError(400, `Bad Request: video id is missing`));
-    }
-    if (!videoFile)
-      return next(new APIError(400, `Bad Request: video file is missing`));
+	try {
+		const { videoId } = req?.params;
+		const videoFile = req?.file;
+		if (!videoId) {
+			removeLocalPath(videoFile.path);
+			return next(new APIError(400, `Bad Request: video id is missing`));
+		}
+		if (!videoFile)
+			return next(new APIError(400, `Bad Request: video file is missing`));
 
-    const video = await Video.findById({ _id: videoId, owner: req.user._id });
-    if (!video) {
-      removeLocalPath(videoFile.path);
-      return next(new AP(500, `You dont have Authority to update`));
-    }
+		const video = await Video.findById({ _id: videoId, owner: req.user._id });
 
-    const uploadVideoFile = await cloudinaryUpload(
-      videoFile.path,
-      videoFile.filename,
-      videoFile.mimetype,
-      videoFile.mimetype.split('/')[0]
-    );
-    if (!uploadVideoFile) {
-      return next(new APIError(500, `server issue failed to uplaod videoFile`));
-    }
+		if (!video) {
+			removeLocalPath(videoFile.path);
+			return next(
+				new APIError(
+					500,
+					`Current Login user is not owner of the video to perform this Operations`
+				)
+			);
+		}
 
-    const videoFileUrl = video?.videoFile?.split('/')[9].split('.')[0];
+		const uploadVideoFile = await cloudinaryUpload(
+			videoFile.path,
+			videoFile.filename,
+			videoFile.mimetype,
+			videoFile.mimetype.split('/')[0]
+		);
+		if (!uploadVideoFile) {
+			return next(new APIError(500, `server issue failed to uplaod videoFile`));
+		}
 
-    const remResource = await cloudinaryRemove(videoFileUrl, 'video');
-    if (!remResource) console.log(`failed to remove resource`);
+		const videoFileUrl = video?.videoFile?.split('/')[9].split('.')[0];
 
-    video.videoFile = uploadVideoFile.url;
-    await video.save({ validateBeforeSave: false });
+		const remResource = await cloudinaryRemove(videoFileUrl, 'video');
+		if (!remResource) console.log(`failed to remove resource`);
 
-    const videoRes = await Video.findById(videoId);
-    res
-      .status(200)
-      .json(new APIResponse(200, `successfully-update-video`, videoRes));
-  } catch (error) {
-    console.log(`error-video-update:${error}`);
-    return next(
-      new APIError(500, `server issue:Failed to update-video`, error)
-    );
-  }
+		video.videoFile = uploadVideoFile.url;
+		await video.save({ validateBeforeSave: false });
+
+		const videoRes = await Video.findById(videoId);
+		res
+			.status(200)
+			.json(new APIResponse(200, `successfully-update-video`, videoRes));
+	} catch (error) {
+		console.log(`error-video-update:${error}`);
+		return next(
+			new APIError(500, `server issue:Failed to update-video`, error)
+		);
+	}
 });
 
 // 4. delete video
 const deleteVideo = AsyncHandler(async (req, res, next) => {
-  try {
-    const { videoId } = req.params;
-    if (!videoId)
-      return next(new APIError(400, `Bad Request:missing video id`));
+	try {
+		const { videoId } = req.params;
+		if (!videoId)
+			return next(new APIError(400, `Bad Request:missing video id`));
 
-    const video = await Video.findOneAndDelete({
-      _id: videoId,
-      owner: req.user._id,
-    });
-    if (!video) return next(new APIError(401, 'Un-Autherized Access.'));
+		const video = await Video.findOneAndDelete({
+			_id: videoId,
+			owner: req.user._id,
+		});
+		if (!video) return next(new APIError(401, 'Un-Autherized Access.'));
 
-    return res
-      .status(200)
-      .json(new APIResponse(200, `successfully deleted requested video`, {}));
-  } catch (error) {
-    console.log(`server issue:failed to delete video${error}`);
-    return next(
-      new APIError(500, `server issue:failed to delete video${error}`)
-    );
-  }
+		return res
+			.status(200)
+			.json(new APIResponse(200, `successfully deleted requested video`, {}));
+	} catch (error) {
+		console.log(`server issue:failed to delete video${error}`);
+		return next(
+			new APIError(500, `server issue:failed to delete video${error}`)
+		);
+	}
 });
 
-// title,description, isPublished
+//5. title,description
 const updateVideoDetails = AsyncHandler(async (req, res, next) => {
-  try {
-    const { videoId } = req?.params;
-    const { title, description } = req?.body;
-    if (!videoId)
-      return next(new APIError(400, `Bad Request: video id missing`));
+	try {
+		const { videoId } = req?.params;
+		const { title, description } = req?.body;
+		if (!description || !title) {
+			return next(
+				new APIError(400, `Bad Request: missing title description missing`)
+			);
+		}
+		if (!videoId)
+			return next(new APIError(400, `Bad Request: video id missing`));
 
-    const video = await Video.findById(videoId);
-    if (!video)
-      return next(new APIError(404, 'video could not found with given id'));
+		const video = await Video.findOne({ _id: videoId, owner: req.user._id });
+		if (!video)
+			return next(
+				new APIError(404, 'current loggin user is Not Owner of the video!')
+			);
 
-    const res = Video.findByIdAndUpdate(
-      videoId,
-      {
-        $set: {
-          title: title || video.title,
-          description: description || video.description,
-        },
-      },
-      { new: true }
-    ).select('-password -refreshToken');
+		const updateRes = await Video.findByIdAndUpdate(
+			video._id,
+			{
+				$set: {
+					title: title || video.title,
+					description: description || video.description,
+				},
+			},
+			{ new: true }
+		).select('-password -refreshToken');
 
-    if (!res) return next(new APIError(500, `server issue:Failed to update`));
+		if (!res) return next(new APIError(500, `server issue:Failed to update`));
 
-    return res
-      .status(200)
-      .json(new APIResponse(200, `successfully updated`, { res }));
-  } catch (error) {
-    console.log(`error while updating user details ${error}`);
-    return next(new APIError(500, 'server issue:', error));
-  }
+		return res
+			.status(200)
+			.json(new APIResponse(200, `successfully updated`, { updateRes }));
+	} catch (error) {
+		console.log(`error while updating user details ${error}`);
+		return next(new APIError(500, 'server issue:', error));
+	}
 });
 
-// ispublished
+//6. ispublished
 const toggleIsPublished = AsyncHandler(async (req, res, next) => {
-  try {
-    const { videoId } = req.params;
-    const { isPublished } = req.body;
-    if (!videoId) return next(new APIError(400, `Bad Request:mising video id`));
+	try {
+		const { videoId } = req.params;
+		const { isPublished } = req.body;
+		if (!videoId) return next(new APIError(400, `Bad Request:mising video id`));
 
-    if (!isPublished)
-      return next(new APIError(400, 'Bad Request missing isPublished state'));
+		if (typeof isPublished !== 'boolean')
+			return next(new APIError(400, 'Bad Request missing isPublished state'));
 
-    const video = Video.findByIdAndUpdate(
-      videoId,
-      {
-        $set: {
-          isPublished: isPublished,
-        },
-      },
-      { new: true }
-    ).select('-password -refreshToken');
+		const video = await Video.findOne({ _id: videoId, owner: req.user._id });
+		if (!video) {
+			return next(
+				new APIError(
+					401,
+					`current loggin user is NOT onwer of this video, Unathorized operation`
+				)
+			);
+		}
 
-    if (!video)
-      return next(new APIError(500, 'server issue:failed to change state'));
+		const updateRes = await Video.findByIdAndUpdate(
+			video._id,
+			{
+				$set: {
+					isPublished: isPublished,
+				},
+			},
+			{ new: true }
+		).select('-password -refreshToken');
 
-    return res
-      .status(200)
-      .json(new APIResponse(200, `successfully update state`, { video }));
-  } catch (error) {
-    console.log(`failed to change  published stats ${error}`);
-    return next(
-      new APIResponse(500, `server issue:failed change published stats${error}`)
-    );
-  }
+		if (!updateRes)
+			return next(new APIError(500, 'server issue:failed to change state'));
+
+		return res
+			.status(200)
+			.json(
+				new APIResponse(200, `successfully update state`, { video: updateRes })
+			);
+	} catch (error) {
+		console.log(`failed to change  published stats ${error}`);
+		return next(
+			new APIResponse(500, `server issue:failed change published stats${error}`)
+		);
+	}
 });
 
-// get-All-videos
+//7. get-All-videos
 const getAllVideos = AsyncHandler(async (req, res, next) => {
-  try {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
-    // do it later
-    const pageVal = Number(page);
-    const limitVal = Number(limit);
-    const skipVal = (pageVal - 1) * limitVal;
-    const videoArr = await Video.find()
-      .skip(skipVal)
-      .limit(limitVal)
-      .sort({ [sortType]: sortBy || 1 });
-    if (!videoArr) return next(new APIError(500, `failed to get All videos`));
+	try {
+		const videoArr = await Video.find();
+		// TODO: PAGINATION,QUERY-SERACH
+		if (!videoArr) return next(new APIError(500, `failed to get All videos`));
 
-    return res.status(200).json(
-      new APIResponse(`successfully fetch videos`, {
-        videos: videoArr,
-      })
-    );
-  } catch (error) {
-    console.log(`failed to get all videos${error}`);
-    return next(new APIError(500, `failed to get All videos`));
-  }
+		return res.status(200).json(
+			new APIResponse(`successfully fetch videos`, {
+				videos: videoArr,
+			})
+		);
+	} catch (error) {
+		console.log(`failed to get all videos${error}`);
+		return next(new APIError(500, `failed to get All videos`));
+	}
 });
-// thumbnail update
+//8. thumbnail update
 const updateThumbnail = AsyncHandler(async (req, res, next) => {
-  try {
-    const { videoId } = req?.params;
-    const thumbnail = req.file;
-    if (!videoId) {
-      removeLocalPath(thumbnail.path);
-      return next(new APIError(400, `Bad Requst:video id missing`));
-    }
+	try {
+		const { videoId } = req?.params;
+		const thumbnail = req.file;
 
-    if (!thumbnail)
-      return next(new APIError(400, `Bad Requst:thumbnail file missing`));
+		if (!videoId) {
+			removeLocalPath(thumbnail.path);
+			return next(new APIError(400, `Bad Requst:video id missing`));
+		}
 
-    const uploadThumbnail = await cloudinaryUpload(
-      thumbnail.path,
-      thumbnail.filename,
-      thumbnail.mimetype,
-      'image'
-    );
-    if (!uploadThumbnail) {
-      return next(
-        new APIError(500, `server issue:failed to upload thumbanail file`)
-      );
-    }
+		if (!thumbnail)
+			return next(new APIError(400, `Bad Requst:thumbnail file missing`));
 
-    const video = await Video.findById(videoId);
-    if (!video) return next(new APIError(404, 'file not found'));
+		const video = await Video.findOne({ _id: videoId, owner: req.user._id });
 
-    video.thumbnail = updateThumbnail.url;
-    await video.save({ validateBeforeSave: false });
+		if (!video) {
+			removeLocalPath(thumbnail.path);
+			return next(
+				new APIError(401, `Current loggin user is NOT owner of the video`)
+			);
+		}
 
-    return res
-      .status(200)
-      .json(new APIResponse(200, `thumbnail update successfully`, {}));
-  } catch (error) {
-    console.log(`failed to update thumbnail ${error}`);
-    return next(
-      new APIError(500, `server issue:failed to update thumbnail`, error)
-    );
-  }
+		const uploadThumbnail = await cloudinaryUpload(
+			thumbnail.path,
+			thumbnail.filename,
+			thumbnail.mimetype,
+			'image'
+		);
+		if (!uploadThumbnail) {
+			return next(
+				new APIError(500, `server issue:failed to upload thumbanail file`)
+			);
+		}
+		const prevThumbnailUrl = video.thumbnail.split('/')[9].split('.')[0];
+
+		video.thumbnail = updateThumbnail.url;
+		await video.save({ validateBeforeSave: false });
+
+		await cloudinaryRemove(prevThumbnailUrl, 'image');
+
+		const videoRes = await Video.findById(video._id);
+		return res.status(200).json(
+			new APIResponse(200, `thumbnail update successfully`, {
+				video: videoRes,
+			})
+		);
+	} catch (error) {
+		console.log(`failed to update thumbnail ${error}`);
+		return next(
+			new APIError(500, `server issue:failed to update thumbnail`, error)
+		);
+	}
 });
 
 export {
-  publishVideo,
-  getVideoById,
-  updateVideo,
-  deleteVideo,
-  updateVideoDetails,
-  toggleIsPublished,
-  getAllVideos,
-  updateThumbnail,
+	publishVideo,
+	getVideoById,
+	updateVideo,
+	deleteVideo,
+	updateVideoDetails,
+	toggleIsPublished,
+	getAllVideos,
+	updateThumbnail,
 };

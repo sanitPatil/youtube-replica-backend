@@ -468,7 +468,6 @@ const getWatchHisotry = AsyncHandler(async (req, res, next) => {
 				},
 			},
 		]);
-		console.log(watchList);
 
 		return res.status(200).json(
 			new APIResponse(200, `successfully fetch watch history`, {
@@ -555,6 +554,7 @@ const getUserChannelProfile = AsyncHandler(async (req, res, next) => {
 		return next(new APIError(500, `failed to get user channel profile`));
 	}
 });
+
 export {
 	registerUser,
 	loginUser,
