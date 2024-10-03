@@ -351,15 +351,21 @@ const updateThumbnail = AsyncHandler(async (req, res, next) => {
 		}
 		const prevThumbnailUrl = video.thumbnail.split('/')[9].split('.')[0];
 
-		video.thumbnail = updateThumbnail.url;
-		await video.save({ validateBeforeSave: false });
+		const updateThumbnailRes = await Video.findByIdAndUpdate(
+			video._id,
+			{
+				$set: {
+					thumbnail: uploadThumbnail.url,
+				},
+			},
+			{ new: true }
+		);
 
 		await cloudinaryRemove(prevThumbnailUrl, 'image');
 
-		const videoRes = await Video.findById(video._id);
 		return res.status(200).json(
 			new APIResponse(200, `thumbnail update successfully`, {
-				video: videoRes,
+				video: updateThumbnailRes,
 			})
 		);
 	} catch (error) {
