@@ -80,9 +80,9 @@ const getChannelStats = AsyncHandler(async (req, res, next) => {
 		return res.status(200).json(
 			new APIResponse(200, `successfully-retrive-stats`, {
 				videos: totalVideos,
-				views: totalViews[0],
-				subscribers: totalSubscribers[0],
-				likes: totalLikes[0],
+				views: totalViews,
+				subscribers: totalSubscribers,
+				likes: totalLikes,
 			})
 		);
 	} catch (error) {
