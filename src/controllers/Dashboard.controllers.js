@@ -107,8 +107,18 @@ const getChannelVideos = AsyncHandler(async (req, res, next) => {
 					owner: new mongoose.Types.ObjectId(channelId),
 				},
 			},
+			{
+				$project: {
+					_id: 1,
+					title: 1,
+					description: 1,
+					thumbnail: 1,
+					videoFile: 1,
+					views: 1,
+					duration: 1,
+				},
+			},
 		]);
-		//
 
 		const owner = await User.aggregate([
 			{
