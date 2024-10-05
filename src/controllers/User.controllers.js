@@ -33,7 +33,9 @@ const removeLocalFile = (path) => {
 		console.log(`File Not Found:${error}`);
 	}
 };
+
 // 1. register user
+
 const registerUser = AsyncHandler(async (req, res, next) => {
 	const { username, email, password, fullname } = req?.body;
 	if (!username || !email || !password || !fullname) {
@@ -393,24 +395,23 @@ const deleteAccount = AsyncHandler(async (req, res, next) => {
 			return next(new APIError(401, 'Bad Request password invalid'));
 
 		const avatarUrl = req?.user?.avatar?.split('/')[9].split('.')[0];
-
 		const remRes = await cloudinaryRemove(avatarUrl, 'image');
 		if (!remRes) console.log(`failed to remove resource`);
 
 		const coverUrl = req?.user?.coverImage?.split('/')[9].split('.')[0];
-
 		const remResource = await cloudinaryRemove(coverUrl, 'image');
+
 		if (!remResource) console.log(`failed to remove resource`);
 
-		const res = await User.findByIdAndDelete(req?.user?._id);
-		if (!res)
+		const removeResponse = await User.findByIdAndDelete(req?.user?._id);
+		if (!removeResponse)
 			return next(new APIError(500, 'server issue:Failed to remove user'));
 
 		const httpOptions = {
 			secure: true,
 			httpOnly: true,
 		};
-		res
+		return res
 			.clearCookie('accessToken', httpOptions)
 			.clearCookie('refreshToken', httpOptions)
 			.status(200)
@@ -496,6 +497,27 @@ const getUserChannelProfile = AsyncHandler(async (req, res, next) => {
 			},
 			{
 				$lookup: {
+					from: 'videos',
+					localField: '_id',
+					foreignField: 'owner',
+					as: 'video',
+					pipeline: [
+						{
+							$project: {
+								_id: 1,
+								thumbanail: 1,
+								title: 1,
+								description: 1,
+								videoFile: 1,
+								duration: 1,
+								views: 1,
+							},
+						},
+					],
+				},
+			},
+			{
+				$lookup: {
 					from: 'subscriptions',
 					localField: '_id',
 					foreignField: 'channel',
@@ -510,6 +532,7 @@ const getUserChannelProfile = AsyncHandler(async (req, res, next) => {
 					as: 'subscribeTo',
 				},
 			},
+
 			{
 				$addFields: {
 					subscribersCount: {
@@ -537,6 +560,7 @@ const getUserChannelProfile = AsyncHandler(async (req, res, next) => {
 					avatar: 1,
 					coverImage: 1,
 					email: 1,
+					video: 1,
 				},
 			},
 		]);
