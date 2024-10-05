@@ -31,10 +31,12 @@ const toggleSubscription = AsyncHandler(async (req, res, next) => {
 				new APIError(500, 'server issue:failed to update subscription')
 			);
 
-		return res.status(200).json(200, `successfully-subscription-state-update`, {
-			subs,
-			status: true,
-		});
+		return res.status(200).json(
+			new APIResponse(200, `successfully-subscription-state-update`, {
+				subs,
+				status: true,
+			})
+		);
 	} catch (error) {
 		console.log(`failed to change subscriptions state`, error);
 		return next(

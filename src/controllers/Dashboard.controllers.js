@@ -48,6 +48,12 @@ const getChannelStats = AsyncHandler(async (req, res, next) => {
 					subscribers: { $sum: 1 },
 				},
 			},
+			{
+				$project: {
+					_id: 0,
+					subscribers: 1,
+				},
+			},
 		]);
 
 		const totalLikes = await Video.aggregate([
