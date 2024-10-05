@@ -198,8 +198,22 @@ const deleteVideo = AsyncHandler(async (req, res, next) => {
 			_id: videoId,
 			owner: req.user._id,
 		});
-		if (!video) return next(new APIError(401, 'Un-Autherized Access.'));
+		if (!video)
+			return next(
+				new APIError(401, 'Un-Autherized Access. you are not the owner')
+			);
 
+		const videoUrl = video.videoFile.split('/')[9].split('.')[0];
+		const thumbnailUrl = video.thumbnail.split('/')[9].split('.')[0];
+
+		if (videoUrl) {
+			await cloudinaryRemove(videoUrl, 'video');
+		}
+		if (thumbnailUrl) {
+			await cloudinaryRemove(thumbnailUrl, 'image');
+		}
+
+		await Video.findByIdAndDelete(video._id);
 		return res
 			.status(200)
 			.json(new APIResponse(200, `successfully deleted requested video`, {}));
