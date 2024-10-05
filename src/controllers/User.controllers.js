@@ -437,6 +437,18 @@ const getWatchHisotry = AsyncHandler(async (req, res, next) => {
 					as: 'watchList',
 					pipeline: [
 						{
+							$project: {
+								_id: 1,
+								title: 1,
+								description: 1,
+								thumbanail: 1,
+								videoFile: 1,
+								views: 1,
+								duration: 1,
+								owner: 1,
+							},
+						},
+						{
 							$lookup: {
 								from: 'users',
 								localField: 'owner',
