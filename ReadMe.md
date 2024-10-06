@@ -34,3 +34,24 @@ Future enhancements include support for real-time video streaming, live chats, v
 9. **cookie-parser**: Middleware for handling cookies
 
 ## Installation
+
+1. Clone the Repository
+   `git clone https://github.com/sanitPatil/youtube-replica-backend.git`
+2. Navigate to the Project Directory
+   `cd youtube-replica-backend`
+
+3. Install Dependencies `npm install`
+
+4. Run the Development Server `npm run dev`
+
+## Additional Notes
+
+1. Ensure that you have Node.js and npm installed on your machine before running these commands.
+
+2. You may need to set up environment variables as specified in your project documentation (e.g., a .env file) to connect to your database or other services.
+
+3. If you encounter any issues, check the Error Response and console for error messages, which can guide you in troubleshooting.
+
+## About Me
+
+My name is **Sanit Patil**, and I am a software developer with expertise in backend development.
