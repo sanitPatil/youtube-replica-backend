@@ -2,6 +2,7 @@ import express from 'express';
 const app = express();
 import cookieParser from 'cookie-parser';
 import { APIError } from './utils/APIError.utils.js';
+import cors from 'cors';
 
 app.use(
 	express.json({
@@ -17,7 +18,12 @@ app.use(
 );
 
 app.use(cookieParser());
-
+app.use(
+	cors({
+		origin: 'http://localhost:5173',
+		optionsSuccessStatus: 200,
+	})
+);
 // U-S-E-R-O-U-T-E-R
 import { userRouter } from './routers/User.routers.js';
 app.use('/api/v1/users', userRouter);

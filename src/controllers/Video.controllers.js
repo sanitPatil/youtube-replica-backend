@@ -315,12 +315,36 @@ const toggleIsPublished = AsyncHandler(async (req, res, next) => {
 //7. get-All-videos
 const getAllVideos = AsyncHandler(async (req, res, next) => {
 	try {
-		const videoArr = await Video.find();
+		// const videoArr = await Video.find();
+
+		const videoArr = await Video.aggregate([
+			{
+				$lookup: {
+					from: 'users',
+					localField: 'owner',
+					foreignField: '_id',
+					as: 'owner',
+					pipeline: [
+						{
+							$project: {
+								username: 1,
+								avatar: 1,
+							},
+						},
+					],
+				},
+			},
+			{
+				$unwind: '$owner',
+			},
+		]);
+		console.log(videoArr);
+		return;
 		// TODO: PAGINATION,QUERY-SERACH
 		if (!videoArr) return next(new APIError(500, `failed to get All videos`));
 
 		return res.status(200).json(
-			new APIResponse(`successfully fetch videos`, {
+			new APIResponse(200, `successfully fetch videos`, {
 				videos: videoArr,
 			})
 		);
