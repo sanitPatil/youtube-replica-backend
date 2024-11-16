@@ -141,52 +141,72 @@ const registerUser = AsyncHandler(async (req, res, next) => {
 });
 
 // 2. login user
+let reqObj = {
+	totalReq: 0,
+};
 const loginUser = AsyncHandler(async (req, res, next) => {
-	try {
-		const { email, password } = req?.body;
-
-		if (!email || !password)
-			return next(
-				new APIError(400, 'Bad request: Email and Password required')
-			);
-
-		const user = await User.findOne({ email });
-		if (!user)
-			return next(new APIError(404, 'user with this email not found!!!'));
-
-		const isPasswordValid = await user.validatePassword(password);
-
-		if (!isPasswordValid) {
-			return next(new APIError(401, 'Authentication failed: invalid password'));
+	if (reqObj.totalReq >= 3) {
+		if (reqObj.email === req?.body?.email) {
+			return res.status(200).json({ message: 'Try After 24 Hours' });
 		}
+	} else {
+		try {
+			const { email, password } = req?.body;
+			reqObj.email = req?.body?.email;
+			if (!email || !password) {
+				// reqObj.totalReq += 1;
+				return next(
+					new APIError(400, 'Bad request: Email and Password required')
+				);
+			}
 
-		const { accessToken, refreshToken } = await generateAccessRefreshToken(
-			user._id
-		);
+			const user = await User.findOne({ email });
+			if (!user) {
+				// reqObj.totalReq += 1;
+				return next(new APIError(404, 'user with this email not found!!!'));
+			}
+			const isPasswordValid = await user.validatePassword(password);
 
-		const loggedInUser = await User.findById(user._id).select(
-			'-password -refreshToken'
-		);
+			if (!isPasswordValid) {
+				console.log(reqObj);
 
-		const httpOptions = {
-			httpOnly: true,
-			secure: true,
-		};
+				reqObj.totalReq += 1;
+				return next(
+					new APIError(401, 'Authentication failed: invalid password', {
+						remainingReq: reqObj.totalReq,
+					})
+				);
+			}
 
-		return res
-			.cookie('accessToken', accessToken, httpOptions)
-			.cookie('refreshToken', refreshToken, httpOptions)
-			.status(200)
-			.json(
-				new APIResponse(200, 'user-successfully-logged-in', {
-					user: loggedInUser,
-					accessToken,
-					refreshToken,
-				})
+			const { accessToken, refreshToken } = await generateAccessRefreshToken(
+				user._id
 			);
-	} catch (error) {
-		console.log(`login user failed ${error}`);
-		return next(new APIError(500, `server issue:failed to login`));
+
+			const loggedInUser = await User.findById(user._id).select(
+				'-password -refreshToken'
+			);
+
+			const httpOptions = {
+				httpOnly: true,
+				secure: true,
+			};
+			reqObj.totalReq = 0;
+			return res
+				.cookie('accessToken', accessToken, httpOptions)
+				.cookie('refreshToken', refreshToken, httpOptions)
+				.status(200)
+				.json(
+					new APIResponse(200, 'user-successfully-logged-in', {
+						user: loggedInUser,
+						accessToken,
+						refreshToken,
+						loginCount: reqOb.totalReq,
+					})
+				);
+		} catch (error) {
+			console.log(`login user failed ${error}`);
+			return next(new APIError(500, `server issue:failed to login`));
+		}
 	}
 });
 

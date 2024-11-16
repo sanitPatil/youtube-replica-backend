@@ -338,8 +338,8 @@ const getAllVideos = AsyncHandler(async (req, res, next) => {
 				$unwind: '$owner',
 			},
 		]);
-		console.log(videoArr);
-		return;
+		// console.log(videoArr);
+
 		// TODO: PAGINATION,QUERY-SERACH
 		if (!videoArr) return next(new APIError(500, `failed to get All videos`));
 
