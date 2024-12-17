@@ -173,7 +173,7 @@ const loginUser = AsyncHandler(async (req, res, next) => {
 				reqObj.totalReq += 1;
 				return next(
 					new APIError(401, 'Authentication failed: invalid password', {
-						remainingReq: reqObj.totalReq,
+						remainingReq: reqObj?.totalReq,
 					})
 				);
 			}
@@ -200,7 +200,6 @@ const loginUser = AsyncHandler(async (req, res, next) => {
 						user: loggedInUser,
 						accessToken,
 						refreshToken,
-						loginCount: reqOb.totalReq,
 					})
 				);
 		} catch (error) {

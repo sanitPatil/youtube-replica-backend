@@ -18,6 +18,8 @@
   "author": "sanit patil <thesanitpatil@gmail.com>",
   "license": "ISC",
   "devDependencies": {
+    "autocannon": "^8.0.0",
+    "morgan": "^1.10.0",
     "nodemon": "^3.1.4"
   },
   "dependencies": {

@@ -3,7 +3,9 @@ const app = express();
 import cookieParser from 'cookie-parser';
 import { APIError } from './utils/APIError.utils.js';
 import cors from 'cors';
+import morgan from 'morgan';
 
+app.use(morgan('dev'));
 app.use(
 	express.json({
 		limit: '16kb',
@@ -70,7 +72,7 @@ app.use((err, req, res, next) => {
 			message: 'internal server issue!',
 			success: false,
 			error: err.message,
-			stack: err.stack,
+			stack: process.env.MODE_ENV === 'development' ? err.stack : undefined,
 		});
 	}
 });
